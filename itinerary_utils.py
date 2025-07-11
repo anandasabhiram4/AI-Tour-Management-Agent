@@ -24,7 +24,6 @@ def fetch_osm_map(destination):
     if not api_key:
         return None, (lat, lon)
 
-    # LocationIQ Static Map URL
     map_url = (
         f"https://maps.locationiq.com/v3/staticmap"
         f"?key={api_key}&center={lat},{lon}&zoom=13&size=600x300&format=png"
@@ -104,15 +103,15 @@ def generate_pdf(text, destination):
     for para in paragraphs:
         lower = para.lower()
         if lower.startswith("day "):
-            pdf.chapter_title("📅 " + para.replace("**", "").strip())
+            pdf.chapter_title(para.replace("**", "").strip())
         elif "destination overview" in lower:
-            pdf.chapter_title("📍 Destination Overview")
+            pdf.chapter_title("Destination Overview")
         elif "daily itinerary" in lower:
-            pdf.chapter_title("🗓️ Daily Itinerary")
+            pdf.chapter_title("Daily Itinerary")
         elif "budget estimate" in lower:
-            pdf.chapter_title("💰 Budget Estimate")
+            pdf.chapter_title("Budget Estimate")
         elif "notes" in lower:
-            pdf.chapter_title("📝 Notes")
+            pdf.chapter_title("Notes")
         elif para.strip().startswith("*"):
             pdf.chapter_body("• " + para.strip("* ").strip())
         else:
@@ -121,13 +120,13 @@ def generate_pdf(text, destination):
     # Add Static Map from LocationIQ
     map_path, coords = fetch_osm_map(destination)
     if map_path:
-        pdf.chapter_title("🗺️ Map Preview")
+        pdf.chapter_title("Map Preview")
         pdf.insert_image(map_path)
 
     # Add QR Code to Google Maps
     qr_path = generate_qr_code(destination)
     if qr_path:
-        pdf.chapter_title("📱 Open in Google Maps")
+        pdf.chapter_title("Open in Google Maps")
         pdf.insert_image(qr_path, w=60)
 
     # Output PDF to memory
