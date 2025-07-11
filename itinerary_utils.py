@@ -132,7 +132,7 @@ def generate_pdf(text, destination):
 
     # Output PDF to memory
     buffer = BytesIO()
-    pdf.output(buffer)
+    pdf.output(buffer, dest='F')
     buffer.seek(0)
 
     # Cleanup temp files
