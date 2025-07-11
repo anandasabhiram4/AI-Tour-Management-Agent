@@ -5,3 +5,4 @@ fpdf
 qrcode
 requests
 matplotlib
+geopy
