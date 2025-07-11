@@ -1,4 +1,7 @@
 streamlit
 google-generativeai
-fpdf2
 python-dotenv
+fpdf
+qrcode
+requests
+matplotlib
