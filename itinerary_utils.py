@@ -75,16 +75,17 @@ def clean_text(text):
 class PDF(FPDF):
     def __init__(self):
         super().__init__()
-        self.set_font("Helvetica", "", 12)
+        self.add_font("DejaVu", "", "DejaVuSans.ttf", uni=True)
+        self.set_font("DejaVu", "", 12)
         self.set_auto_page_break(auto=True, margin=15)
 
     def chapter_title(self, title):
-        self.set_font("Helvetica", "B", 12)
+        self.set_font("DejaVu", "", 12)
         self.cell(0, 10, title.strip(), ln=True)
         self.ln(1)
 
     def chapter_body(self, body):
-        self.set_font("Helvetica", "", 11)
+        self.set_font("DejaVu", "", 11)
         self.multi_cell(0, 8, body.strip())
         self.ln()
 
