@@ -1,14 +1,13 @@
 import os
 import re
-import qrcode
 import tempfile
 import requests
 from io import BytesIO
+from fpdf import FPDF
+import qrcode
 from PIL import Image
 from geopy.geocoders import Nominatim
 from dotenv import load_dotenv
-from fpdf import FPDF
-from fpdf.fonts import load_font
 
 load_dotenv()
 
@@ -32,15 +31,13 @@ def fetch_osm_map(destination):
 
     try:
         response = requests.get(map_url, timeout=5)
-        if response.status_code == 200:
-            temp_map = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-            temp_map.write(response.content)
-            temp_map.close()
-            return temp_map.name, (lat, lon)
-    except requests.RequestException:
-        pass
-
-    return None, (lat, lon)
+        response.raise_for_status()
+        temp_map = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+        temp_map.write(response.content)
+        temp_map.close()
+        return temp_map.name, (lat, lon)
+    except:
+        return None, (lat, lon)
 
 
 def generate_qr_code(destination):
@@ -79,7 +76,6 @@ def clean_text(text):
 class PDF(FPDF):
     def __init__(self):
         super().__init__()
-        load_font("DejaVu", uni=True)  # Uses built-in DejaVu font from fpdf2
         self.set_font("DejaVu", size=12)
         self.set_auto_page_break(auto=True, margin=15)
 
@@ -108,7 +104,7 @@ def generate_pdf(text, destination):
     for para in paragraphs:
         lower = para.lower()
         if lower.startswith("day "):
-            pdf.chapter_title("📅 " + para.replace("**", "").strip())
+            pdf.chapter_title(para.replace("**", "").strip())
         elif "destination overview" in lower:
             pdf.chapter_title("📍 Destination Overview")
         elif "daily itinerary" in lower:
@@ -122,24 +118,24 @@ def generate_pdf(text, destination):
         else:
             pdf.chapter_body(para.strip())
 
-    # Add Static Map
+    # Add Map
     map_path, coords = fetch_osm_map(destination)
     if map_path:
         pdf.chapter_title("🗺️ Map Preview")
         pdf.insert_image(map_path)
 
-    # Add QR Code to Google Maps
+    # Add QR Code
     qr_path = generate_qr_code(destination)
     if qr_path:
         pdf.chapter_title("📱 Open in Google Maps")
         pdf.insert_image(qr_path, w=60)
 
-    # Output PDF to memory
+    # Write to BytesIO and return
     buffer = BytesIO()
     buffer.write(pdf.output(dest="S").encode("latin1"))
     buffer.seek(0)
 
-    # Cleanup temp files
+    # Cleanup
     if map_path:
         os.unlink(map_path)
     if qr_path:
