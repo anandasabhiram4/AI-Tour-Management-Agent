@@ -1,8 +1,8 @@
 streamlit
 google-generativeai
 python-dotenv
-fpdf
+fpdf2
 qrcode
 requests
-matplotlib
 geopy
+Pillow
