@@ -8,7 +8,7 @@ from PIL import Image
 from geopy.geocoders import Nominatim
 from dotenv import load_dotenv
 from fpdf import FPDF
-from fpdf.fonts import FontFace
+
 
 load_dotenv()
 
