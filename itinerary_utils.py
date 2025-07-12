@@ -8,7 +8,7 @@ from PIL import Image
 from geopy.geocoders import Nominatim
 from dotenv import load_dotenv
 from fpdf import FPDF
-
+from fpdf.fonts import load_font
 
 load_dotenv()
 
@@ -30,22 +30,25 @@ def fetch_osm_map(destination):
         f"?key={api_key}&center={lat},{lon}&zoom=13&size=600x300&format=png"
     )
 
-    response = requests.get(map_url, timeout=5)
-    if response.status_code == 200:
-        temp_map = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-        temp_map.write(response.content)
-        temp_map.close()
-        return temp_map.name, (lat, lon)
+    try:
+        response = requests.get(map_url, timeout=5)
+        if response.status_code == 200:
+            temp_map = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+            temp_map.write(response.content)
+            temp_map.close()
+            return temp_map.name, (lat, lon)
+    except requests.RequestException:
+        pass
 
     return None, (lat, lon)
 
 
 def generate_qr_code(destination):
-    url = f"https://www.google.com/maps/search/?api=1&query={destination.replace(' ', '+')}"
-    qr = qrcode.make(url)
-    temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-    qr.save(temp.name)
-    return temp.name
+    google_maps_url = f"https://www.google.com/maps/search/?api=1&query={destination.replace(' ', '+')}"
+    qr_img = qrcode.make(google_maps_url)
+    temp_qr = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    qr_img.save(temp_qr.name)
+    return temp_qr.name
 
 
 def clean_text(text):
@@ -73,59 +76,73 @@ def clean_text(text):
     return merged
 
 
-def generate_pdf(text, destination):
-    pdf = FPDF(format="A4")
-    pdf.add_page()
+class PDF(FPDF):
+    def __init__(self):
+        super().__init__()
+        load_font("DejaVu", uni=True)  # Uses built-in DejaVu font from fpdf2
+        self.set_font("DejaVu", size=12)
+        self.set_auto_page_break(auto=True, margin=15)
 
-    # Set font (DejaVuSans.ttf must exist in root directory)
-    font_path = "DejaVuSans.ttf"
-    pdf.add_font("DejaVu", "", font_path, uni=True)
-    pdf.set_font("DejaVu", "", 12)
+    def chapter_title(self, title):
+        self.set_font("DejaVu", style="B", size=12)
+        self.cell(0, 10, title.strip(), ln=True)
+        self.ln(1)
+
+    def chapter_body(self, body):
+        self.set_font("DejaVu", size=11)
+        self.multi_cell(0, 8, body.strip())
+        self.ln()
+
+    def insert_image(self, path, w=180):
+        if os.path.exists(path):
+            self.image(path, w=w)
+            self.ln(5)
+
+
+def generate_pdf(text, destination):
+    pdf = PDF()
+    pdf.add_page()
 
     paragraphs = clean_text(text)
 
     for para in paragraphs:
         lower = para.lower()
         if lower.startswith("day "):
-            pdf.set_font("DejaVu", "", 12)
-            pdf.cell(0, 10, "📅 " + para.strip("**").strip(), ln=True)
+            pdf.chapter_title("📅 " + para.replace("**", "").strip())
         elif "destination overview" in lower:
-            pdf.set_font("DejaVu", "", 12)
-            pdf.cell(0, 10, "📍 Destination Overview", ln=True)
+            pdf.chapter_title("📍 Destination Overview")
         elif "daily itinerary" in lower:
-            pdf.set_font("DejaVu", "", 12)
-            pdf.cell(0, 10, "🗓️ Daily Itinerary", ln=True)
+            pdf.chapter_title("🗓️ Daily Itinerary")
         elif "budget estimate" in lower:
-            pdf.set_font("DejaVu", "", 12)
-            pdf.cell(0, 10, "💰 Budget Estimate", ln=True)
+            pdf.chapter_title("💰 Budget Estimate")
         elif "notes" in lower:
-            pdf.set_font("DejaVu", "", 12)
-            pdf.cell(0, 10, "📝 Notes", ln=True)
+            pdf.chapter_title("📝 Notes")
         elif para.strip().startswith("*"):
-            pdf.set_font("DejaVu", "", 11)
-            pdf.multi_cell(0, 8, "• " + para.strip("* ").strip())
+            pdf.chapter_body("• " + para.strip("* ").strip())
         else:
-            pdf.set_font("DejaVu", "", 11)
-            pdf.multi_cell(0, 8, para.strip())
+            pdf.chapter_body(para.strip())
 
-    # Add map
-    map_path, _ = fetch_osm_map(destination)
+    # Add Static Map
+    map_path, coords = fetch_osm_map(destination)
     if map_path:
-        pdf.set_font("DejaVu", "", 12)
-        pdf.cell(0, 10, "🗺️ Map Preview", ln=True)
-        pdf.image(map_path, w=180)
-        os.unlink(map_path)
+        pdf.chapter_title("🗺️ Map Preview")
+        pdf.insert_image(map_path)
 
-    # Add QR code
+    # Add QR Code to Google Maps
     qr_path = generate_qr_code(destination)
     if qr_path:
-        pdf.set_font("DejaVu", "", 12)
-        pdf.cell(0, 10, "📱 Open in Google Maps", ln=True)
-        pdf.image(qr_path, w=60)
-        os.unlink(qr_path)
+        pdf.chapter_title("📱 Open in Google Maps")
+        pdf.insert_image(qr_path, w=60)
 
-    # Return as in-memory buffer
+    # Output PDF to memory
     buffer = BytesIO()
     buffer.write(pdf.output(dest="S").encode("latin1"))
     buffer.seek(0)
+
+    # Cleanup temp files
+    if map_path:
+        os.unlink(map_path)
+    if qr_path:
+        os.unlink(qr_path)
+
     return buffer
