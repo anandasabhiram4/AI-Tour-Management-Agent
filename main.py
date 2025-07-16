@@ -13,31 +13,9 @@ model = genai.GenerativeModel(model_name="models/gemini-1.5-flash")
 # Streamlit UI Setup
 st.set_page_config(page_title="AI Tour Planner", page_icon="🌍", layout="centered")
 
-# Premium Web-Style UI
+# Simple Styling
 st.markdown("""
     <style>
-    /* Remove default Streamlit block container padding & shadows */
-section.main > div {
-    padding: 0 !important;
-    box-shadow: none !important;
-    border: none !important;
-    background: transparent !important;
-}
-
-/* Remove white background or border inside st-form */
-.stForm {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-}
-
-/* Remove background from result text block */
-.stMarkdown {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-}
-
     html, body {
         margin: 0;
         padding: 0;
@@ -48,54 +26,6 @@ section.main > div {
 
     .stApp {
         background: transparent;
-    }
-
-    h1.hero-title {
-        font-size: 48px;
-        text-align: center;
-        color: #ffffff;
-        margin-top: 2rem;
-        font-weight: 800;
-        text-shadow: 2px 4px 12px rgba(0,0,0,0.3);
-    }
-
-    p.hero-subtitle {
-        text-align: center;
-        font-size: 20px;
-        color: #fff9f0;
-        margin-top: -0.8rem;
-        margin-bottom: 2rem;
-        font-weight: 400;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    .stTextInput > div > div > input,
-    .stTextArea textarea,
-    .stNumberInput input {
-        background-color: #ffffffcc;
-        padding: 0.9rem;
-        border-radius: 12px;
-        border: 1px solid #ccc;
-        font-size: 16px;
-        transition: box-shadow 0.3s ease;
-    }
-
-    .stTextInput > div > div > input:focus,
-    .stTextArea textarea:focus,
-    .stNumberInput input:focus {
-        box-shadow: 0 0 0 2px #ff6f00;
-        border: 1px solid #ff6f00;
-    }
-
-    .stTextInput label, .stNumberInput label, .stTextArea label {
-        font-weight: bold;
-        font-size: 15px;
-        color: #222;
-        margin-bottom: 0.5rem;
     }
 
     .stButton > button {
@@ -130,26 +60,17 @@ section.main > div {
     .stDownloadButton > button:hover {
         background-color: #444;
     }
-
-    h3 {
-        font-size: 20px;
-        margin-top: 1rem;
-        color: #333;
-        font-weight: 600;
-    }
     </style>
 """, unsafe_allow_html=True)
-
 
 # Title
 st.markdown("<h1 style='text-align: center;'>🗺️ AI Tour Management Agent</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; font-size:18px;'>Plan your perfect trip with hotels, food, maps & QR — AI-powered!</p>", unsafe_allow_html=True)
-st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-
+st.markdown("---")
 
 # Input Form
 with st.form("trip_form"):
-    cities = st.text_input("📍 Destination(s)", placeholder="e.g., Manali or Delhi, Agra, Jaipur")
+    route = st.text_input("📍 Travel Route (From → To)", placeholder="e.g., Hyderabad to Delhi to Agra")
     days = st.number_input("📅 Trip duration (in days)", min_value=1, step=1)
     interests = st.text_area("🎯 Interests / Activities", placeholder="e.g., adventure, temples, local food")
     budget = st.text_input("💰 Budget (optional)", placeholder="e.g., ₹30000 or $500")
@@ -158,8 +79,9 @@ with st.form("trip_form"):
 if submitted:
     with st.spinner("🧳 Planning your adventure..."):
 
-        city_list = [city.strip() for city in cities.split(",") if city.strip()]
-        location_summary = ", ".join(city_list)
+        # Extract cities from "from to to" pattern
+        city_list = [c.strip() for c in re.split(r"\s*to\s*", route, flags=re.IGNORECASE) if c.strip()]
+        location_summary = " → ".join(city_list)
 
         # Gemini Prompt (includes low-budget hotel suggestion)
         if len(city_list) == 1:
@@ -203,12 +125,12 @@ if submitted:
         st.markdown("### 📝 Itinerary Plan")
         st.markdown(itinerary)
 
-        # Extract actual city/cities from Gemini response
+        # Extract destination for QR/map
         extracted_cities = re.findall(r"(?:Day \d+:|City:|in ) ([A-Z][a-zA-Z\s]+)", itinerary)
         unique_cities = list(dict.fromkeys([city.strip() for city in extracted_cities if city.strip()]))
         map_target = unique_cities[0] if unique_cities else city_list[0]
 
-        # Generate downloadable PDF using extracted destination
+        # Generate downloadable PDF
         st.download_button(
             "📄 Download Itinerary as PDF",
             generate_pdf(itinerary, map_target),
