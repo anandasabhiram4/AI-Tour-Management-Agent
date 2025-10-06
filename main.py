@@ -8,7 +8,7 @@ import re
 # Load API keys
 load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-model = genai.GenerativeModel(model_name="models/gemini-1.5-flash")
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 # Streamlit UI Setup
 st.set_page_config(page_title="AI Tour Planner", page_icon="🌍", layout="centered")
